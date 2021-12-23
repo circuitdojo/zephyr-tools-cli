@@ -1,5 +1,12 @@
+use core::time;
+use std::{
+    io::{self, BufRead, BufReader, Write},
+    thread::sleep,
+    time::Duration,
+};
+
 use serde_json;
-use serialport::available_ports;
+use serialport::{self, available_ports};
 
 const HELP: &str = "\
 App
@@ -9,6 +16,9 @@ FLAGS:
   -h, --help            Prints help information
 OPTIONS:
   --list, -l            Lists serial ports avaiable
+  --follow,             Follow serial port if it disconnects
+  --port,               Port to connect to
+  --baud,               Baud to use (default 115200)
 ARGS:
   <INPUT>
 ";
@@ -16,6 +26,9 @@ ARGS:
 #[derive(Debug)]
 struct AppArgs {
     list: bool,
+    port: Option<String>,
+    baud: u32,
+    follow: bool,
 }
 
 fn parse_args() -> Result<AppArgs, pico_args::Error> {
@@ -29,6 +42,9 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
 
     let args = AppArgs {
         list: pargs.contains(["-l", "--list"]),
+        port: pargs.opt_value_from_str("--port")?,
+        baud: pargs.value_from_str("--baud").or(Ok(115_200))?,
+        follow: pargs.contains(["-f", "--follow"]),
     };
 
     // It's up to the caller what to do with the remaining arguments.
@@ -49,6 +65,7 @@ fn main() {
         }
     };
 
+    // Show list of possible ports
     if args.list {
         match available_ports() {
             Ok(ports) => {
@@ -66,5 +83,63 @@ fn main() {
                 eprintln!("Error listing serial ports");
             }
         }
+
+        return;
     }
+
+    if args.port.is_some() {
+        print!("Connecting..");
+        io::stdout().flush().unwrap();
+
+        let port_name = args.port.unwrap();
+
+        loop {
+            // Open with settings
+            let port = serialport::new(&port_name, args.baud)
+                .timeout(time::Duration::from_millis(10))
+                .open();
+
+            // Then watch the buffer until terminated..
+            match port {
+                Ok(p) => {
+                    // Start incoming data on a new line
+                    println!("\nConnected to {}!", port_name);
+
+                    let lines = BufReader::new(p).lines();
+
+                    for line in lines {
+                        match line {
+                            Ok(l) => println!("{}", l),
+                            Err(e) => {
+                                if e.to_string().contains("Operation timed out") {
+                                    continue;
+                                } else {
+                                    if args.follow {
+                                        break;
+                                    } else {
+                                        eprintln!("Error: {}", e);
+                                        std::process::exit(1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(_e) => {
+                    if !args.follow {
+                        eprintln!("Unable to connect to {} with baud {}", port_name, args.baud);
+                        std::process::exit(1);
+                    }
+                }
+            }
+
+            // Print that we're waiting..
+            print!(".");
+            io::stdout().flush().unwrap();
+            sleep(Duration::from_secs(1));
+        }
+    }
+
+    // Otherwise print help
+    print!("{}", HELP);
 }
