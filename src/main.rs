@@ -1,10 +1,12 @@
 use core::time;
 use std::{
+    fs::File,
     io::{self, BufRead, BufReader, Write},
     thread::sleep,
     time::Duration,
 };
 
+use chrono::Local;
 use serde_json;
 use serialport::{self, available_ports};
 
@@ -19,6 +21,7 @@ OPTIONS:
   --follow,             Follow serial port if it disconnects
   --port,               Port to connect to
   --baud,               Baud to use (default 115200)
+  --save, -s            Automatically save output to file
 ARGS:
   <INPUT>
 ";
@@ -29,6 +32,7 @@ struct AppArgs {
     port: Option<String>,
     baud: u32,
     follow: bool,
+    save: bool,
 }
 
 fn parse_args() -> Result<AppArgs, pico_args::Error> {
@@ -45,6 +49,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
         port: pargs.opt_value_from_str("--port")?,
         baud: pargs.value_from_str("--baud").or(Ok(115_200))?,
         follow: pargs.contains(["-f", "--follow"]),
+        save: pargs.contains(["-s", "--save"]),
     };
 
     // It's up to the caller what to do with the remaining arguments.
@@ -93,6 +98,19 @@ fn main() {
 
         let port_name = args.port.unwrap();
 
+        // Open file if active
+        let mut file = match args.save {
+            true => {
+                let time = Local::now();
+
+                match File::create(format!("log-{}.txt", time.to_rfc3339())) {
+                    Ok(f) => Some(f),
+                    Err(_) => None,
+                }
+            }
+            false => None,
+        };
+
         loop {
             // Open with settings
             let port = serialport::new(&port_name, args.baud)
@@ -109,7 +127,16 @@ fn main() {
 
                     for line in lines {
                         match line {
-                            Ok(l) => println!("{}", l),
+                            Ok(l) => {
+                                println!("{}", l);
+
+                                // Save to file as well..
+                                if let Some(ref mut f) = file {
+                                    let _ = f.write(l.as_bytes());
+                                    let _ = f.write(b"\n");
+                                    let _ = f.flush();
+                                }
+                            }
                             Err(e) => {
                                 if e.to_string().contains("Operation timed out") {
                                     continue;

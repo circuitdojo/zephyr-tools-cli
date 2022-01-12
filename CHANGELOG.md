@@ -1,3 +1,11 @@
+
+## [0.1.2]
+
+Option to save to file.
+
+Added:
+* Option to save output to file as well.
+
 ## [0.1.1]
 
 Opening serial port.
