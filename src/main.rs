@@ -1,7 +1,7 @@
 use core::time;
 use std::{
     fs::File,
-    io::{self, BufRead, BufReader, Write},
+    io::{self, Write},
     thread::sleep,
     time::Duration,
 };
@@ -119,34 +119,29 @@ fn main() {
 
             // Then watch the buffer until terminated..
             match port {
-                Ok(p) => {
+                Ok(mut p) => {
                     // Start incoming data on a new line
                     println!("\nConnected to {}!", port_name);
 
-                    let lines = BufReader::new(p).lines();
-
-                    for line in lines {
-                        match line {
-                            Ok(l) => {
-                                println!("{}", l);
+                    let mut buf: Vec<u8> = vec![0; 1000];
+                    loop {
+                        match p.read(buf.as_mut_slice()) {
+                            Ok(t) => {
+                                io::stdout().write_all(&buf[..t]).unwrap();
 
                                 // Save to file as well..
                                 if let Some(ref mut f) = file {
-                                    let _ = f.write(l.as_bytes());
-                                    let _ = f.write(b"\n");
+                                    let _ = f.write(&buf[..t]);
                                     let _ = f.flush();
                                 }
                             }
+                            Err(ref e) if e.kind() == io::ErrorKind::TimedOut => continue,
                             Err(e) => {
-                                if e.to_string().contains("Operation timed out") {
-                                    continue;
+                                if args.follow {
+                                    break;
                                 } else {
-                                    if args.follow {
-                                        break;
-                                    } else {
-                                        eprintln!("Error: {}", e);
-                                        std::process::exit(1);
-                                    }
+                                    eprintln!("Error: {}", e);
+                                    std::process::exit(1);
                                 }
                             }
                         }

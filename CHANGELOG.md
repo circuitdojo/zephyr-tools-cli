@@ -1,4 +1,11 @@
 
+## [0.1.3]
+
+Fixing issue where not all characters are printed
+
+Changed:
+* Use of raw buffers rather than "lines" since not all data returned will be a nice null terminated or \n string
+
 ## [0.1.2]
 
 Option to save to file.
