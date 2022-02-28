@@ -1,4 +1,12 @@
 
+## [0.1.4]
+
+Allowing for writing to serial session.
+
+Changed:
+* Monitoring stdin and allowing write of string to device
+
+
 ## [0.1.3]
 
 Fixing issue where not all characters are printed

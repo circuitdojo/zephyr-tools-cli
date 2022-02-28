@@ -2,7 +2,7 @@ use core::time;
 use std::{
     fs::File,
     io::{self, Write},
-    thread::sleep,
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -122,6 +122,27 @@ fn main() {
                 Ok(mut p) => {
                     // Start incoming data on a new line
                     println!("\nConnected to {}!", port_name);
+
+                    // Clone the port
+                    let mut clone = p.try_clone().expect("Failed to clone");
+
+                    // Read input from keyboard.
+                    thread::spawn(move || loop {
+                        let mut buffer = String::new();
+
+                        let _ = match io::stdin().read_line(&mut buffer) {
+                            Ok(_) => clone.write_all(format!("{}\r\n", buffer).as_bytes()),
+                            Err(e) => {
+                                eprintln!("Error: {}", e);
+                                break;
+                            }
+                        };
+
+                        // Check if clone is still valid otherwise exit loop
+                        if let Err(_) = clone.flush() {
+                            break;
+                        }
+                    });
 
                     let mut buf: Vec<u8> = vec![0; 1000];
                     loop {
