@@ -1,4 +1,12 @@
 
+## [0.1.5]
+
+Allowing to put select devices into bootloader mode
+
+Changed:
+* nRF9160 Feather can now be placed into bootloader mode via this CLI util.
+
+
 ## [0.1.4]
 
 Allowing for writing to serial session.

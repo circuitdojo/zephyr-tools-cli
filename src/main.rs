@@ -7,8 +7,9 @@ use std::{
 };
 
 use chrono::Local;
-use serde_json;
 use serialport::{self, available_ports};
+
+use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, UsbContext};
 
 const HELP: &str = "\
 App
@@ -33,6 +34,7 @@ struct AppArgs {
     baud: u32,
     follow: bool,
     save: bool,
+    bl: bool,
 }
 
 fn parse_args() -> Result<AppArgs, pico_args::Error> {
@@ -50,6 +52,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
         baud: pargs.value_from_str("--baud").or(Ok(115_200))?,
         follow: pargs.contains(["-f", "--follow"]),
         save: pargs.contains(["-s", "--save"]),
+        bl: pargs.contains(["-b", "--bl"]),
     };
 
     // It's up to the caller what to do with the remaining arguments.
@@ -59,6 +62,33 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
     }
 
     Ok(args)
+}
+
+fn open_device<T: UsbContext>(
+    context: &mut T,
+    vid: u16,
+    pid: u16,
+) -> Option<(Device<T>, DeviceDescriptor, DeviceHandle<T>)> {
+    let devices = match context.devices() {
+        Ok(d) => d,
+        Err(_) => return None,
+    };
+
+    for device in devices.iter() {
+        let device_desc = match device.device_descriptor() {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        if device_desc.vendor_id() == vid && device_desc.product_id() == pid {
+            match device.open() {
+                Ok(handle) => return Some((device, device_desc, handle)),
+                Err(e) => panic!("Device found but failed to open: {}", e),
+            }
+        }
+    }
+
+    None
 }
 
 fn main() {
@@ -88,6 +118,71 @@ fn main() {
                 eprintln!("Error listing serial ports");
             }
         }
+
+        return;
+    }
+
+    if args.bl {
+        // Get the device and place into bootloader
+        match Context::new() {
+            Ok(mut context) => match open_device(&mut context, 0x10c4, 0xea60) {
+                Some((_device, _device_desc, handle)) => {
+                    println!("Placing nRF9169 Feather into bootloader mode!");
+
+                    // Force both low
+                    if let Err(e) = handle.write_control(
+                        0x41,
+                        0xff,
+                        0x37e1,
+                        0x0003,
+                        &[],
+                        Duration::from_millis(100),
+                    ) {
+                        eprintln!("Error writing command! Err: {}", e);
+                        return;
+                    }
+
+                    // Small delay
+                    sleep(Duration::from_millis(100));
+
+                    // Releaseelease reset
+                    if let Err(e) = handle.write_control(
+                        0x41,
+                        0xff,
+                        0x37e1,
+                        0x0103,
+                        &[],
+                        Duration::from_millis(100),
+                    ) {
+                        eprintln!("Error writing command! Err: {}", e);
+                        return;
+                    }
+
+                    // Larger delay to catch "button press"
+                    sleep(Duration::from_millis(1000));
+
+                    // Release mode
+                    if let Err(e) = handle.write_control(
+                        0x41,
+                        0xff,
+                        0x37e1,
+                        0x0303,
+                        &[],
+                        Duration::from_millis(100),
+                    ) {
+                        eprintln!("Error writing command! Err: {}", e);
+                        return;
+                    }
+                }
+                None => {
+                    println!("could not find device {:04x}:{:04x}", 0x10c4, 0xea60);
+                    return;
+                }
+            },
+            Err(e) => panic!("could not initialize libusb: {}", e),
+        }
+
+        println!("Done!");
 
         return;
     }
@@ -131,17 +226,16 @@ fn main() {
                         let mut buffer = String::new();
 
                         let _ = match io::stdin().read_line(&mut buffer) {
-                            Ok(_) => clone.write_all(format!("{}\r\n", buffer).as_bytes()),
+                            Ok(_) => {
+                                let l = format!("{}\r\n", buffer.replace('\n', ""));
+                                // println!("\n{:?}", l);
+                                clone.write(l.as_bytes())
+                            }
                             Err(e) => {
                                 eprintln!("Error: {}", e);
                                 break;
                             }
                         };
-
-                        // Check if clone is still valid otherwise exit loop
-                        if let Err(_) = clone.flush() {
-                            break;
-                        }
                     });
 
                     let mut buf: Vec<u8> = vec![0; 1000];
