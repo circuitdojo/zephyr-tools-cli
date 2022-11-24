@@ -83,7 +83,7 @@ fn open_device<T: UsbContext>(
         if device_desc.vendor_id() == vid && device_desc.product_id() == pid {
             match device.open() {
                 Ok(handle) => return Some((device, device_desc, handle)),
-                Err(e) => panic!("Device found but failed to open: {}", e),
+                Err(e) => eprintln!("Device found but failed to open: {}", e),
             }
         }
     }
@@ -173,16 +173,16 @@ fn main() {
                         eprintln!("Error writing command! Err: {}", e);
                         return;
                     }
+
+                    println!("Done!");
                 }
                 None => {
                     println!("could not find device {:04x}:{:04x}", 0x10c4, 0xea60);
                     return;
                 }
             },
-            Err(e) => panic!("could not initialize libusb: {}", e),
+            Err(e) => eprintln!("could not initialize libusb: {}", e),
         }
-
-        println!("Done!");
 
         return;
     }
