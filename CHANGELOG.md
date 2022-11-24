@@ -1,3 +1,11 @@
+## [0.1.7]
+
+Allow checking of version
+
+Changed:
+* Version now shows in help dialogue
+* Version now shows with -v command
+
 ## [0.1.6]
 
 Fixing panic condition for platforms that don't support libusb

@@ -11,8 +11,12 @@ use serialport::{self, available_ports};
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, UsbContext};
 
-const HELP: &str = "\
-App
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
+const HELP: &str = concat!(
+    "Zephyr Tools ",
+    env!("CARGO_PKG_VERSION"),
+    "\r\n
 USAGE:
   app [OPTIONS]
 FLAGS:
@@ -23,9 +27,10 @@ OPTIONS:
   --port,               Port to connect to
   --baud,               Baud to use (default 115200)
   --save, -s            Automatically save output to file
+  --version, -v         Get version of thsi application
 ARGS:
-  <INPUT>
-";
+  <INPUT>"
+);
 
 #[derive(Debug)]
 struct AppArgs {
@@ -35,6 +40,7 @@ struct AppArgs {
     follow: bool,
     save: bool,
     bl: bool,
+    version: bool,
 }
 
 fn parse_args() -> Result<AppArgs, pico_args::Error> {
@@ -53,6 +59,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
         follow: pargs.contains(["-f", "--follow"]),
         save: pargs.contains(["-s", "--save"]),
         bl: pargs.contains(["-b", "--bl"]),
+        version: pargs.contains(["-v", "--version"]),
     };
 
     // It's up to the caller what to do with the remaining arguments.
@@ -99,6 +106,12 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    // Show version #
+    if args.version {
+        println!("Version: {}", VERSION);
+        return;
+    }
 
     // Show list of possible ports
     if args.list {
