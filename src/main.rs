@@ -177,11 +177,11 @@ fn main() {
                     println!("Done!");
                 }
                 None => {
-                    println!("could not find device {:04x}:{:04x}", 0x10c4, 0xea60);
+                    println!("Could not open device {:04x}:{:04x}", 0x10c4, 0xea60);
                     return;
                 }
             },
-            Err(e) => eprintln!("could not initialize libusb: {}", e),
+            Err(e) => eprintln!("Could not initialize libusb: {}", e),
         }
 
         return;

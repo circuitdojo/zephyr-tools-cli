@@ -1,3 +1,10 @@
+## [0.1.6]
+
+Fixing panic condition for platforms that don't support libusb
+
+Changed:
+* Removed/replaced panic! with eprintln!
+* Moved Done! print out
 
 ## [0.1.5]
 
