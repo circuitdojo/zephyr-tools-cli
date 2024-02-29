@@ -158,7 +158,7 @@ fn main() {
                     // Small delay
                     sleep(Duration::from_millis(100));
 
-                    // Releaseelease reset
+                    // Release reset
                     if let Err(e) = handle.write_control(
                         0x41,
                         0xff,
