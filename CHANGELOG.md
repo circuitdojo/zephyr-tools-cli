@@ -1,3 +1,9 @@
+## [0.1.8]
+
+Fixes:
+* Handling reconnection of serial connection by dropping appropriately
+* Updating workflow to generate multiple binaries used by VSCode tools
+
 ## [0.1.7]
 
 Allow checking of version
