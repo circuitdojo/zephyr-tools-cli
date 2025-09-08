@@ -212,7 +212,7 @@ fn main() {
             true => {
                 let time = Local::now();
 
-                match File::create(format!("log-{}.txt", time.to_rfc3339())) {
+                match File::create(format!("log-{}.log", time.to_rfc3339())) {
                     Ok(f) => Some(f),
                     Err(_) => None,
                 }
