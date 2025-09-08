@@ -2,6 +2,7 @@ use core::time;
 use std::{
     fs::File,
     io::{self, Write},
+    sync::mpsc,
     thread::{self, sleep},
     time::Duration,
 };
@@ -231,28 +232,33 @@ fn main() {
                     // Start incoming data on a new line
                     println!("\nConnected to {}!", port_name);
 
-                    // Clone the port
-                    let mut clone = p.try_clone().expect("Failed to clone");
+                    // Create channel for input handling
+                    let (input_tx, input_rx) = mpsc::channel();
 
                     // Read input from keyboard.
                     thread::spawn(move || loop {
                         let mut buffer = String::new();
-
-                        let _ = match io::stdin().read_line(&mut buffer) {
+                        match io::stdin().read_line(&mut buffer) {
                             Ok(_) => {
                                 let l = format!("{}\r\n", buffer.replace('\n', ""));
-                                // println!("\n{:?}", l);
-                                clone.write(l.as_bytes())
+                                if input_tx.send(l).is_err() {
+                                    break;
+                                }
                             }
                             Err(e) => {
                                 eprintln!("Error: {}", e);
                                 break;
                             }
-                        };
+                        }
                     });
 
                     let mut buf: Vec<u8> = vec![0; 1000];
                     loop {
+                        // Check for user input first
+                        if let Ok(input) = input_rx.try_recv() {
+                            let _ = p.write(input.as_bytes());
+                        }
+
                         match p.read(buf.as_mut_slice()) {
                             Ok(t) => {
                                 io::stdout().write_all(&buf[..t]).unwrap();
@@ -266,6 +272,8 @@ fn main() {
                             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => continue,
                             Err(e) => {
                                 if args.follow {
+                                    drop(p);
+                                    sleep(Duration::from_millis(100));
                                     break;
                                 } else {
                                     eprintln!("Error: {}", e);
