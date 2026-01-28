@@ -232,6 +232,12 @@ fn main() {
                     // Start incoming data on a new line
                     println!("\nConnected to {}!", port_name);
 
+                    // Assert DTR (Data Terminal Ready) and handle errors.
+                    // This must be done on Windows to enable receiving data.
+                    let _ = p.write_data_terminal_ready(true).map_err(|e| {
+                        format!("Failed to set DTR: {}", e)
+                    });
+
                     // Create channel for input handling
                     let (input_tx, input_rx) = mpsc::channel();
 
