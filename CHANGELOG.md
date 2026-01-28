@@ -1,3 +1,8 @@
+## [0.1.9]
+
+Fixes:
+* Ensure Data Terminal Ready (DTR) is asserted on serial connection for Windows compatibility
+
 ## [0.1.8]
 
 Fixes:
