@@ -1,3 +1,9 @@
+## [0.1.10]
+
+Fixes:
+* macOS: statically link libusb. Release binaries were linked against Homebrew's `libusb-1.0.0.dylib` and aborted on Macs without it, so `zephyr-tools -l` listed no serial ports
+* CI: update `actions/checkout` to v5
+
 ## [0.1.9]
 
 Fixes:
